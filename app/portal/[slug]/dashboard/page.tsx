@@ -17,10 +17,13 @@ type Overview = {
   pendingSignatures: { id: string; title: string; doc_type: string }[];
 };
 
+type Deliverable = { id: string; module_id: string; title: string; done: boolean; sort_order: number };
+
 export default function DashboardPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const [data, setData] = useState<Overview | null>(null);
+  const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,40 +33,37 @@ export default function DashboardPage() {
       return;
     }
 
-    fetch("/api/overview", { headers: { Authorization: `Bearer ${token}` } })
-      .then(async (res) => {
-        if (res.status === 401) {
+    Promise.all([
+      fetch("/api/overview", { headers: { Authorization: `Bearer ${token}` } }),
+      fetch("/api/deliverables", { headers: { Authorization: `Bearer ${token}` } }),
+    ])
+      .then(async ([ovRes, delRes]) => {
+        if (ovRes.status === 401) {
           router.push(`/portal/${slug}/login`);
           return;
         }
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.error ?? "Failed to load");
+        const ov = await ovRes.json();
+        if (!ovRes.ok) {
+          setError(ov.error ?? "Failed to load");
           return;
         }
-        setData(json);
+        setData(ov);
+        if (delRes.ok) {
+          const del = await delRes.json();
+          setDeliverables(del.deliverables ?? []);
+        }
       })
       .catch(() => setError("Failed to load"));
   }, [slug, router]);
 
   if (error) return <main className="p-8 text-sm text-red-600">{error}</main>;
-  if (!data) return <main className="p-8 text-sm text-[#666]">Loading…</main>;
+  if (!data) return <main className="p-8 text-sm text-[#666] dark:text-[#888]">Loading…</main>;
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-[#666]">Domani Portal · {slug}</p>
-          <h1 className="text-2xl font-semibold mt-1">{data.project.name}</h1>
-        </div>
-        <div className="flex gap-3">
-          <a href={`/portal/${slug}/issues`} className="text-sm border border-[#ECECEC] rounded-lg px-4 py-2">
-            Issues
-          </a>
-          <a href={`/portal/${slug}/documents`} className="text-sm border border-[#ECECEC] rounded-lg px-4 py-2">
-            Documents
-          </a>
-        </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-[#666] dark:text-[#888]">Domani Portal · {slug}</p>
+        <h1 className="text-2xl font-semibold mt-1">{data.project.name}</h1>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -73,27 +73,44 @@ export default function DashboardPage() {
         <Stat label="Next milestone" value={data.project.next_milestone ?? "—"} />
       </div>
 
-      <section>
-        <h2 className="text-sm font-medium text-[#666] mb-3">Modules</h2>
-        <div className="border border-[#ECECEC] rounded-xl divide-y divide-[#ECECEC]">
-          {data.modules.length === 0 && <p className="p-4 text-sm text-[#666]">No modules yet.</p>}
-          {data.modules.map((m) => (
-            <div key={m.id} className="flex items-center justify-between p-4">
-              <span className="text-sm">{m.name}</span>
-              <span className="text-xs text-[#666]">{m.status.replace("_", " ")} · {m.progress_pct}%</span>
+      <section className="space-y-4">
+        <h2 className="text-sm font-medium text-[#666] dark:text-[#888]">Modules</h2>
+        {data.modules.length === 0 && <p className="text-sm text-[#666] dark:text-[#888]">No modules yet.</p>}
+        {data.modules.map((m) => {
+          const items = deliverables.filter((d) => d.module_id === m.id).sort((a, b) => a.sort_order - b.sort_order);
+          return (
+            <div key={m.id} className="border border-[#ECECEC] dark:border-[#2A2A2A] rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{m.name}</span>
+                <span className="text-xs text-[#666] dark:text-[#888]">{m.status.replace("_", " ")} · {m.progress_pct}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#ECECEC] dark:bg-[#2A2A2A] overflow-hidden">
+                <div className="h-full bg-black dark:bg-white" style={{ width: `${m.progress_pct}%` }} />
+              </div>
+              {items.length > 0 && (
+                <ul className="space-y-1 pt-1">
+                  {items.map((it) => (
+                    <li key={it.id} className="text-xs flex items-center gap-2">
+                      <span className={it.done ? "line-through text-[#999]" : ""}>
+                        {it.done ? "✓" : "○"} {it.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </section>
 
       <section>
-        <h2 className="text-sm font-medium text-[#666] mb-3">Open issues</h2>
-        <div className="border border-[#ECECEC] rounded-xl divide-y divide-[#ECECEC]">
-          {data.openIssues.length === 0 && <p className="p-4 text-sm text-[#666]">No open issues.</p>}
+        <h2 className="text-sm font-medium text-[#666] dark:text-[#888] mb-3">Open issues</h2>
+        <div className="border border-[#ECECEC] dark:border-[#2A2A2A] rounded-xl divide-y divide-[#ECECEC] dark:divide-[#2A2A2A]">
+          {data.openIssues.length === 0 && <p className="p-4 text-sm text-[#666] dark:text-[#888]">No open issues.</p>}
           {data.openIssues.map((i) => (
             <div key={i.id} className="flex items-center justify-between p-4">
               <span className="text-sm">#{i.number} {i.title}</span>
-              <span className="text-xs text-[#666]">{i.priority} · {i.status.replace("_", " ")}</span>
+              <span className="text-xs text-[#666] dark:text-[#888]">{i.priority} · {i.status.replace("_", " ")}</span>
             </div>
           ))}
         </div>
@@ -101,12 +118,12 @@ export default function DashboardPage() {
 
       {data.pendingSignatures.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-[#666] mb-3">Awaiting your signature</h2>
-          <div className="border border-[#ECECEC] rounded-xl divide-y divide-[#ECECEC]">
+          <h2 className="text-sm font-medium text-[#666] dark:text-[#888] mb-3">Awaiting your signature</h2>
+          <div className="border border-[#ECECEC] dark:border-[#2A2A2A] rounded-xl divide-y divide-[#ECECEC] dark:divide-[#2A2A2A]">
             {data.pendingSignatures.map((d) => (
               <div key={d.id} className="flex items-center justify-between p-4">
                 <span className="text-sm">{d.title}</span>
-                <span className="text-xs text-[#666]">{d.doc_type.replace("_", " ")}</span>
+                <span className="text-xs text-[#666] dark:text-[#888]">{d.doc_type.replace("_", " ")}</span>
               </div>
             ))}
           </div>
@@ -118,8 +135,8 @@ export default function DashboardPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#ECECEC] rounded-xl p-4">
-      <p className="text-xs text-[#666]">{label}</p>
+    <div className="border border-[#ECECEC] dark:border-[#2A2A2A] rounded-xl p-4">
+      <p className="text-xs text-[#666] dark:text-[#888]">{label}</p>
       <p className="text-sm font-medium mt-1 capitalize">{value}</p>
     </div>
   );
