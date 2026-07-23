@@ -2,26 +2,38 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Domani brand system */
+  --domani-obsidian: #080706;
+  --domani-cyan: #B8F0FF;
+  --domani-chalk: #EDE9E2;
+
+  --background: var(--domani-chalk);
+  --foreground: var(--domani-obsidian);
+  --border-color: #E0DCD3;
+  --muted: #6B665C;
+  --accent: var(--domani-cyan);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-domani-obsidian: var(--domani-obsidian);
+  --color-domani-cyan: var(--domani-cyan);
+  --color-domani-chalk: var(--domani-chalk);
+  --font-sans: var(--font-figtree);
+  --font-mono: var(--font-dm-mono);
+  --font-display: var(--font-bodoni);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: var(--domani-obsidian);
+  --foreground: var(--domani-chalk);
+  --border-color: #1F1E1B;
+  --muted: #948E80;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-figtree), Arial, Helvetica, sans-serif;
 }

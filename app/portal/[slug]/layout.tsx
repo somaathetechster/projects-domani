@@ -57,10 +57,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const dark = theme === "dark";
 
   return (
-    <div className={dark ? "dark min-h-screen bg-[#0A0A0A] text-[#F5F5F5]" : "min-h-screen bg-[#FAFAFA] text-[#111111]"}>
-      <header className={`border-b ${dark ? "border-[#1F1F1F]" : "border-[#ECECEC]"} sticky top-0 z-10 ${dark ? "bg-[#0A0A0A]" : "bg-[#FAFAFA]"}`}>
+    <div className={dark ? "dark min-h-screen bg-[#080706] text-[#EDE9E2]" : "min-h-screen bg-[#EDE9E2] text-[#080706]"}>
+      <header className={`border-b ${dark ? "border-[#1F1E1B]" : "border-[#E0DCD3]"} sticky top-0 z-10 ${dark ? "bg-[#080706]" : "bg-[#EDE9E2]"}`}>
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-6">
-          <span className="text-xs font-semibold tracking-wide flex items-center gap-2">
+          <span className="font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.25em] flex items-center gap-2">
             {projectInfo?.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={projectInfo.logoUrl} alt="" className="h-5 w-5 rounded object-contain" />
@@ -72,7 +72,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               <a
                 key={item.href}
                 href={`/portal/${slug}/${item.href}`}
-                className={pathname.endsWith(item.href) ? "font-medium" : dark ? "text-[#888]" : "text-[#666]"}
+                className={
+                  pathname.endsWith(item.href)
+                    ? dark ? "text-[#B8F0FF]" : "text-[#080706] font-medium"
+                    : dark ? "text-[#948E80]" : "text-[#6B665C]"
+                }
               >
                 {item.label}
               </a>
@@ -80,7 +84,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             {role === "domani_staff" && (
               <a
                 href={`/portal/${slug}/admin`}
-                className={pathname.endsWith("/admin") ? "font-medium" : dark ? "text-[#888]" : "text-[#666]"}
+                className={
+                  pathname.endsWith("/admin")
+                    ? dark ? "text-[#B8F0FF]" : "text-[#080706] font-medium"
+                    : dark ? "text-[#948E80]" : "text-[#6B665C]"
+                }
               >
                 Admin
               </a>
@@ -91,10 +99,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search…"
-              className={`text-xs rounded-lg px-3 py-1.5 border ${dark ? "border-[#2A2A2A] bg-[#141414]" : "border-[#ECECEC] bg-white"}`}
+              className={`text-xs rounded-lg px-3 py-1.5 border ${dark ? "border-[#1F1E1B] bg-[#0D0C0A] text-[#EDE9E2]" : "border-[#E0DCD3] bg-white"}`}
             />
           </form>
-          <a href={`/portal/${slug}/settings`} className={`text-sm ${dark ? "text-[#888]" : "text-[#666]"}`}>
+          <a href={`/portal/${slug}/settings`} className={`text-sm ${dark ? "text-[#948E80]" : "text-[#6B665C]"}`}>
             Settings
           </a>
         </div>
