@@ -127,9 +127,17 @@ export default function HomePage() {
           <p className="font-[family-name:var(--font-display)] text-lg italic text-[#948E80]">
             We build tomorrow.
           </p>
-          <p className="font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.2em] text-[#6B665C]">
-            © {new Date().getFullYear()} DOMANI · WORLDWIDE
-          </p>
+          <div className="flex items-center gap-6">
+            <p className="font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.2em] text-[#6B665C]">
+              © {new Date().getFullYear()} DOMANI · WORLDWIDE
+            </p>
+            <a
+              href="/admin/login"
+              className="font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.2em] text-[#2A2825] transition-colors hover:text-[#B8F0FF]"
+            >
+              STAFF
+            </a>
+          </div>
         </div>
       </footer>
     </main>

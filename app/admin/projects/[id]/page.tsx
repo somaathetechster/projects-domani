@@ -19,11 +19,13 @@ type Project = {
   id: string;
   slug: string;
   name: string;
+  codename: string | null;
   status: string;
   progress_pct: number;
   current_phase: string | null;
   next_milestone: string | null;
   eta: string | null;
+  clients: { name: string; visibility: string } | null;
 };
 type Module = { id: string; name: string; status: string; progress_pct: number };
 type Deliverable = { id: string; module_id: string; title: string; done: boolean };
@@ -49,6 +51,7 @@ export default function AdminProjectPage() {
   const [newModule, setNewModule] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newDeliverable, setNewDeliverable] = useState<Record<string, string>>({});
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   const load = useCallback(
     async (token: string) => {
@@ -246,6 +249,49 @@ export default function AdminProjectPage() {
           {saving && <p className="text-[10px] text-[#6B665C]">Saving…</p>}
         </Panel>
 
+        {/* ── Identity & visibility ──────────────────────── */}
+        <Panel className="space-y-4 p-6">
+          <Label>Identity & visibility</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] text-[#6B665C]">Public codename (login handle)</p>
+              <Input
+                value={project.codename ?? ""}
+                onChange={(e) => setProject({ ...project, codename: e.target.value.toUpperCase() })}
+                onBlur={(e) => saveProject({ codename: e.target.value } as Partial<Project>)}
+                placeholder="AURORA"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] text-[#6B665C]">Client name (admin-only)</p>
+              <Input
+                value={project.clients?.name ?? ""}
+                onChange={(e) =>
+                  setProject({ ...project, clients: { name: e.target.value, visibility: project.clients?.visibility ?? "hidden" } })
+                }
+                onBlur={(e) => saveProject({ client_name: e.target.value } as unknown as Partial<Project>)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] text-[#6B665C]">Homepage listing</p>
+            <Select
+              value={project.clients?.visibility ?? "hidden"}
+              onChange={(e) => {
+                setProject({ ...project, clients: { name: project.clients?.name ?? "", visibility: e.target.value } });
+                saveProject({ visibility: e.target.value } as unknown as Partial<Project>);
+              }}
+              className="w-full"
+            >
+              <option value="public">Listed — codename shown on homepage</option>
+              <option value="hidden">Hidden — not listed anywhere</option>
+            </Select>
+            <p className="text-[10px] text-[#6B665C]">
+              Only the codename is ever shown publicly. The client name never leaves this admin portal.
+            </p>
+          </div>
+        </Panel>
+
         {/* ── Modules & deliverables ─────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -388,6 +434,35 @@ export default function AdminProjectPage() {
             ))}
           </Panel>
         </section>
+        {/* ── Danger zone ───────────────────────────────── */}
+        <Panel className="space-y-3 border-[#4A2B26] p-6">
+          <Label>Danger zone</Label>
+          <p className="text-xs text-[#948E80]">
+            Deleting removes the project, all member access, issues, documents, invoices, and history.
+            This cannot be undone. Type the codename to confirm.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder={project.codename ?? "CODENAME"}
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value.toUpperCase())}
+            />
+            <Button
+              variant="danger"
+              disabled={!project.codename || deleteConfirm !== project.codename}
+              onClick={async () => {
+                const res = await fetch(`/api/admin-portal/projects/${id}`, {
+                  method: "DELETE",
+                  headers: authHeaders(),
+                });
+                if (res.ok) router.push("/admin");
+                else setError((await res.json()).error ?? "Delete failed");
+              }}
+            >
+              Delete project
+            </Button>
+          </div>
+        </Panel>
       </div>
     </main>
   );
