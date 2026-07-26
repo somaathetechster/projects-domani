@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const { data } = await supabaseAdmin
     .from("project_members")
-    .select("theme_preference, email, role")
+    .select("theme_preference, email, role, display_name")
     .eq("id", session.memberId)
     .single();
 
@@ -23,6 +23,14 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
+
+  if (body.display_name !== undefined) {
+    const name = String(body.display_name).trim().slice(0, 60);
+    await supabaseAdmin
+      .from("project_members")
+      .update({ display_name: name || null })
+      .eq("id", session.memberId);
+  }
 
   if (body.theme_preference !== undefined) {
     if (!["light", "dark"].includes(body.theme_preference)) {

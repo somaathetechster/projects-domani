@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const tokenRef = useRef<string | null>(null);
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [displayName, setDisplayName] = useState("");
+  const [nameSaved, setNameSaved] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -24,7 +26,12 @@ export default function SettingsPage() {
     tokenRef.current = t;
     fetch("/api/settings", { headers: { Authorization: `Bearer ${t}` } })
       .then((r) => r.json())
-      .then((d) => d.settings && setTheme(d.settings.theme_preference));
+      .then((d) => {
+        if (d.settings) {
+          setTheme(d.settings.theme_preference);
+          setDisplayName(d.settings.display_name ?? "");
+        }
+      });
   }, [slug, router]);
 
   async function updateTheme(next: "light" | "dark") {
@@ -65,6 +72,36 @@ export default function SettingsPage() {
   return (
     <main className="max-w-lg mx-auto px-6 py-10 space-y-8">
       <h1 className="text-2xl font-semibold">Settings</h1>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium text-[#666] dark:text-[#888]">Display name</h2>
+        <p className="text-xs text-[#6B665C]">Shown on your messages, uploads, and signatures.</p>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border border-[#ECECEC] dark:border-[#2A2A2A] bg-transparent px-3 py-2 text-sm"
+            value={displayName}
+            onChange={(e) => { setDisplayName(e.target.value); setNameSaved(false); }}
+            placeholder="e.g. Somaa"
+          />
+          <button
+            className="rounded-lg bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
+            disabled={!displayName.trim()}
+            onClick={async () => {
+              const t = tokenRef.current;
+              if (!t) return;
+              await fetch("/api/settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+                body: JSON.stringify({ display_name: displayName }),
+              });
+              setNameSaved(true);
+            }}
+          >
+            Save
+          </button>
+        </div>
+        {nameSaved && <p className="text-xs text-green-600">Saved.</p>}
+      </section>
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-[#666] dark:text-[#888]">Appearance</h2>

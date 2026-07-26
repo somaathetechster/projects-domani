@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-type Msg = { id: string; body: string; sender_id: string; created_at: string };
+type Msg = { id: string; body: string; sender_id: string; created_at: string; project_members: { email: string; role: string; display_name: string | null } | null };
 
 export default function ChatPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -61,10 +61,15 @@ export default function ChatPage() {
           <div
             key={m.id}
             className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
-              m.sender_id === selfId ? "ml-auto bg-black text-white" : "bg-[#F0F0F0] dark:bg-[#1F1F1F]"
+              m.sender_id === selfId ? "ml-auto bg-[#B8F0FF] text-[#080706]" : "border border-[#1F1E1B] bg-[#0D0C0A] text-[#EDE9E2]"
             }`}
           >
-            {m.body}
+            <p>{m.body}</p>
+            <p className={`mt-0.5 font-[family-name:var(--font-dm-mono)] text-[9px] ${m.sender_id === selfId ? "text-[#080706]/60" : "text-[#6B665C]"}`}>
+              {m.project_members?.display_name ?? m.project_members?.email ?? "unknown"}
+              {m.project_members?.role === "domani_staff" ? " · Domani" : ""}
+              {" · "}{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
           </div>
         ))}
         <div ref={bottomRef} />

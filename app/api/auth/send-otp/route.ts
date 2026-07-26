@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolveProject } from "@/lib/resolve-project";
 import { generateOtp, hashValue, otpExpiry } from "@/lib/auth";
 import { sendOtpEmail } from "@/lib/email";
 
@@ -13,11 +14,7 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: project } = await supabaseAdmin
-    .from("projects")
-    .select("id")
-    .eq("slug", projectSlug)
-    .single();
+  const project = await resolveProject(projectSlug);
 
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });

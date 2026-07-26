@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticator } from "otplib";
 import QRCode from "qrcode";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolveProject } from "@/lib/resolve-project";
 import { hashValue, hashToken } from "@/lib/auth";
 
 // POST { projectSlug, email, setupToken, password }
@@ -15,8 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Password must be at least 10 characters." }, { status: 400 });
   }
 
-  const { data: project } = await supabaseAdmin
-    .from("projects").select("id").eq("slug", projectSlug).single();
+  const project = await resolveProject(projectSlug);
   if (!project) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   // Validate the short-lived setup token issued by verify-otp
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashValue(password);
   const totpSecret = authenticator.generateSecret();
-  const otpAuthUrl = authenticator.keyuri(normalizedEmail, `Domani Projects · ${projectSlug}`, totpSecret);
+  const otpAuthUrl = authenticator.keyuri(normalizedEmail, `Domani Portal · ${projectSlug}`, totpSecret);
   const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
 
   await supabaseAdmin

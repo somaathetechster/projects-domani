@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticator } from "otplib";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolveProject } from "@/lib/resolve-project";
 import { generateSessionToken, hashToken, sessionExpiry } from "@/lib/auth";
 
 // POST { projectSlug, email, code }
@@ -10,8 +11,7 @@ export async function POST(req: NextRequest) {
   const { projectSlug, email, code } = await req.json();
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: project } = await supabaseAdmin
-    .from("projects").select("id").eq("slug", projectSlug).single();
+  const project = await resolveProject(projectSlug);
   if (!project) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   const { data: member } = await supabaseAdmin

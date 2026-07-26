@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolveProject } from "@/lib/resolve-project";
 import { verifyHash } from "@/lib/auth";
 
 // POST /api/auth/login-password — { projectSlug, email, password }
@@ -11,8 +12,7 @@ export async function POST(req: NextRequest) {
   const { projectSlug, email, password } = await req.json();
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: project } = await supabaseAdmin
-    .from("projects").select("id").eq("slug", projectSlug).single();
+  const project = await resolveProject(projectSlug);
   if (!project) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   const { data: member } = await supabaseAdmin

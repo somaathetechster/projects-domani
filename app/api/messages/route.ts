@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("messages")
-    .select("id, body, sender_id, created_at")
+    .select("id, body, sender_id, created_at, project_members(email, role, display_name)")
     .eq("project_id", session.projectId)
     .order("created_at", { ascending: true })
     .limit(200);

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("documents")
-    .select("id, title, doc_type, status, file_url, uploaded_by, created_at")
+    .select("id, title, doc_type, status, file_url, uploaded_by, created_at, project_members(email, display_name)")
     .eq("project_id", session.projectId)
     .order("created_at", { ascending: false });
 
