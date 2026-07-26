@@ -128,7 +128,7 @@ export default function HomePage() {
             We build tomorrow.
           </p>
           <p className="font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.2em] text-[#6B665C]">
-            © {new Date().getFullYear()} DOMANI · ABUJA / WORLDWIDE
+            © {new Date().getFullYear()} DOMANI · WORLDWIDE
           </p>
         </div>
       </footer>
