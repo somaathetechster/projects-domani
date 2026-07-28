@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Button, Input, Label, Panel } from "@/components/ui";
 
 type Step = "email" | "otp" | "setup-password" | "setup-totp" | "login-password" | "login-totp";
 
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
 
+  const [codename, setCodename] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -16,236 +18,222 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [setupToken, setSetupToken] = useState<string | null>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function sendOtp() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/auth/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectSlug: slug, email }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const d = await res.json();
-      setError(d.error ?? "Something went wrong");
-      return;
-    }
-    setStep("otp");
-  }
+  useEffect(() => {
+    fetch(`/api/public/project/${slug}`)
+      .then((r) => r.json())
+      .then((d) => d.codename && setCodename(d.codename))
+      .catch(() => {});
+  }, [slug]);
 
-  async function verifyOtp() {
+  async function call(path: string, body: Record<string, unknown>) {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/auth/verify-otp", {
+    const res = await fetch(`/api/auth/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectSlug: slug, email, code: otp }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
-      setError(data.error ?? "Invalid code");
-      return;
+      setError(data.error ?? "Something went wrong");
+      return null;
     }
-    if (data.requiresSetup) {
-      setSetupToken(data.setupToken);
-      setStep("setup-password");
-    } else {
-      // Returning user — OTP confirmed identity, now require password.
-      setStep("login-password");
-    }
+    return data;
   }
 
-  async function submitNewPassword() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/auth/set-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectSlug: slug, email, setupToken, password }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error ?? "Could not set password");
-      return;
-    }
-    setQrCodeDataUrl(data.qrCodeDataUrl);
-    setStep("setup-totp");
-  }
-
-  async function confirmTotp() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/auth/verify-totp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectSlug: slug, email, code: totpCode }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error ?? "Invalid code");
-      return;
-    }
-    finishLogin(data.sessionToken);
-  }
-
-  function finishLogin(token: string) {
-    setSessionToken(token);
+  function finish(token: string) {
     sessionStorage.setItem(`domani_session_${slug}`, token);
     router.push(`/portal/${slug}/dashboard`);
   }
 
-  async function submitLoginPassword() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/auth/login-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectSlug: slug, email, password }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error ?? "Incorrect password");
-      return;
-    }
-    setStep("login-totp");
-  }
-
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm border border-[#ECECEC] rounded-xl p-8 bg-white">
-        <p className="text-xs uppercase tracking-wide text-[#666]">Domani Portal · {slug}</p>
-        <h1 className="text-xl font-semibold mt-2 mb-6">Sign in</h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#080706] px-6">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/domani-orbit.jpg" alt="" className="mx-auto h-12 w-12 rounded-full" />
+          <p className="mt-4 font-[family-name:var(--font-dm-mono)] text-[10px] tracking-[0.35em] text-[#B8F0FF]">
+            {codename ?? String(slug).toUpperCase()}
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-dm-mono)] text-[9px] tracking-[0.25em] text-[#6B665C]">
+            DOMANI CLIENT WORKSPACE
+          </p>
+        </div>
 
-        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+        <Panel className="space-y-4 p-7">
+          {error && <p className="text-sm text-[#E88B7D]">{error}</p>}
 
-        {step === "email" && (
-          <div className="space-y-3">
-            <input
-              type="email"
-              placeholder="you@company.com"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <button
-              onClick={sendOtp}
-              disabled={loading || !email}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              {loading ? "Sending…" : "Send code"}
-            </button>
-          </div>
-        )}
+          {step === "email" && (
+            <>
+              <Label>Sign in</Label>
+              <p className="text-xs text-[#6B665C]">
+                Access is limited to addresses authorised for this engagement.
+              </p>
+              <Input
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && email) {
+                    const d = await call("send-otp", { projectSlug: slug, email });
+                    if (d) setStep("otp");
+                  }
+                }}
+              />
+              <Button
+                className="w-full"
+                disabled={loading || !email}
+                onClick={async () => {
+                  const d = await call("send-otp", { projectSlug: slug, email });
+                  if (d) setStep("otp");
+                }}
+              >
+                {loading ? "Sending…" : "Send code"}
+              </Button>
+            </>
+          )}
 
-        {step === "otp" && (
-          <div className="space-y-3">
-            <p className="text-sm text-[#666]">Enter the 6-digit code sent to {email}</p>
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm tracking-widest"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
-            <button
-              onClick={verifyOtp}
-              disabled={loading || otp.length !== 6}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              {loading ? "Verifying…" : "Verify"}
-            </button>
-          </div>
-        )}
+          {step === "otp" && (
+            <>
+              <Label>Verification</Label>
+              <p className="text-xs text-[#6B665C]">A six-digit code was sent to {email}.</p>
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                className="text-center tracking-[0.5em]"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+              />
+              <Button
+                className="w-full"
+                disabled={loading || otp.length !== 6}
+                onClick={async () => {
+                  const d = await call("verify-otp", { projectSlug: slug, email, code: otp });
+                  if (!d) return;
+                  if (d.requiresSetup) {
+                    setSetupToken(d.setupToken);
+                    setStep("setup-password");
+                  } else {
+                    setStep("login-password");
+                  }
+                }}
+              >
+                {loading ? "Verifying…" : "Verify"}
+              </Button>
+            </>
+          )}
 
-        {step === "setup-password" && (
-          <div className="space-y-3">
-            <p className="text-sm text-[#666]">First login — set a password (min 10 characters)</p>
-            <input
-              type="password"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              onClick={submitNewPassword}
-              disabled={loading || password.length < 10}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              {loading ? "Saving…" : "Continue"}
-            </button>
-          </div>
-        )}
+          {step === "setup-password" && (
+            <>
+              <Label>Set your password</Label>
+              <p className="text-xs text-[#6B665C]">First sign-in. Minimum ten characters.</p>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Button
+                className="w-full"
+                disabled={loading || password.length < 10}
+                onClick={async () => {
+                  const d = await call("set-password", { projectSlug: slug, email, setupToken, password });
+                  if (!d) return;
+                  setQrCodeDataUrl(d.qrCodeDataUrl);
+                  setStep("setup-totp");
+                }}
+              >
+                {loading ? "Saving…" : "Continue"}
+              </Button>
+            </>
+          )}
 
-        {step === "setup-totp" && qrCodeDataUrl && (
-          <div className="space-y-3">
-            <p className="text-sm text-[#666]">Scan with Google Authenticator, Authy, or 1Password</p>
-            <img src={qrCodeDataUrl} alt="Authenticator QR code" className="mx-auto" />
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="Enter the 6-digit code"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm tracking-widest"
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value)}
-            />
-            <button
-              onClick={confirmTotp}
-              disabled={loading || totpCode.length !== 6}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              {loading ? "Confirming…" : "Confirm & sign in"}
-            </button>
-          </div>
-        )}
+          {step === "setup-totp" && qrCodeDataUrl && (
+            <>
+              <Label>Two-factor setup</Label>
+              <p className="text-xs text-[#6B665C]">
+                Scan with Google Authenticator, Authy, or 1Password, then enter the code shown.
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCodeDataUrl} alt="Authenticator QR code" className="mx-auto rounded-lg" />
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                className="text-center tracking-[0.5em]"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+              <Button
+                className="w-full"
+                disabled={loading || totpCode.length !== 6}
+                onClick={async () => {
+                  const d = await call("verify-totp", { projectSlug: slug, email, code: totpCode });
+                  if (d) finish(d.sessionToken);
+                }}
+              >
+                {loading ? "Confirming…" : "Confirm & sign in"}
+              </Button>
+            </>
+          )}
 
-        {step === "login-totp" && (
-          <div className="space-y-3">
-            <p className="text-sm text-[#666]">Enter the code from your authenticator app</p>
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm tracking-widest"
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value)}
-            />
-            <button
-              onClick={confirmTotp}
-              disabled={loading || totpCode.length !== 6}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              {loading ? "Verifying…" : "Sign in"}
-            </button>
-          </div>
-        )}
+          {step === "login-password" && (
+            <>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && password) {
+                    const d = await call("login-password", { projectSlug: slug, email, password });
+                    if (d) setStep("login-totp");
+                  }
+                }}
+              />
+              <Button
+                className="w-full"
+                disabled={loading || !password}
+                onClick={async () => {
+                  const d = await call("login-password", { projectSlug: slug, email, password });
+                  if (d) setStep("login-totp");
+                }}
+              >
+                {loading ? "Checking…" : "Continue"}
+              </Button>
+            </>
+          )}
 
-        {step === "login-password" && (
-          <div className="space-y-3">
-            <p className="text-sm text-[#666]">Enter your password</p>
-            <input
-              type="password"
-              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              onClick={submitLoginPassword}
-              disabled={loading}
-              className="w-full bg-black text-white rounded-lg py-2 text-sm disabled:opacity-40"
-            >
-              Continue
-            </button>
-          </div>
-        )}
+          {step === "login-totp" && (
+            <>
+              <Label>Authenticator</Label>
+              <p className="text-xs text-[#6B665C]">Enter the current code from your authenticator app.</p>
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                className="text-center tracking-[0.5em]"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+              <Button
+                className="w-full"
+                disabled={loading || totpCode.length !== 6}
+                onClick={async () => {
+                  const d = await call("verify-totp", { projectSlug: slug, email, code: totpCode });
+                  if (d) finish(d.sessionToken);
+                }}
+              >
+                {loading ? "Verifying…" : "Sign in"}
+              </Button>
+            </>
+          )}
+        </Panel>
+
+        <p className="text-center font-[family-name:var(--font-dm-mono)] text-[9px] tracking-[0.2em] text-[#2A2825]">
+          PROTECTED BY EMAIL VERIFICATION + TWO-FACTOR AUTHENTICATION
+        </p>
       </div>
     </main>
   );

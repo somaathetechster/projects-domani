@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Button, EmptyState, Input, Panel } from "@/components/ui";
 
-type Msg = { id: string; body: string; sender_id: string; created_at: string; project_members: { email: string; role: string; display_name: string | null } | null };
+type Msg = {
+  id: string;
+  body: string;
+  sender_id: string;
+  created_at: string;
+  project_members: { email: string; role: string; display_name: string | null } | null;
+};
 
 export default function ChatPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -14,6 +21,20 @@ export default function ChatPage() {
   const tokenRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const load = useCallback(
+    async (t: string) => {
+      const res = await fetch("/api/messages", { headers: { Authorization: `Bearer ${t}` } });
+      if (res.status === 401) {
+        router.push(`/portal/${slug}/login`);
+        return;
+      }
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+      setSelfId(data.selfId ?? null);
+    },
+    [slug, router]
+  );
+
   useEffect(() => {
     const t = sessionStorage.getItem(`domani_session_${slug}`);
     if (!t) {
@@ -21,25 +42,15 @@ export default function ChatPage() {
       return;
     }
     tokenRef.current = t;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     load(t);
-    const interval = setInterval(() => load(t), 5000); // simple polling until realtime is wired
+    const interval = setInterval(() => load(t), 5000);
     return () => clearInterval(interval);
-  }, [slug, router]);
+  }, [slug, router, load]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  async function load(t: string) {
-    const res = await fetch("/api/messages", { headers: { Authorization: `Bearer ${t}` } });
-    if (res.status === 401) {
-      router.push(`/portal/${slug}/login`);
-      return;
-    }
-    const data = await res.json();
-    setMessages(data.messages ?? []);
-    setSelfId(data.selfId ?? null);
-  }
 
   async function send() {
     const t = tokenRef.current;
@@ -54,37 +65,51 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-6 py-10 flex flex-col h-[calc(100vh-64px)]">
-      <h1 className="text-2xl font-semibold mb-4">Chat</h1>
-      <div className="flex-1 overflow-y-auto space-y-2 border border-[#ECECEC] dark:border-[#2A2A2A] rounded-xl p-4">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
-              m.sender_id === selfId ? "ml-auto bg-[#B8F0FF] text-[#080706]" : "border border-[#1F1E1B] bg-[#0D0C0A] text-[#EDE9E2]"
-            }`}
-          >
-            <p>{m.body}</p>
-            <p className={`mt-0.5 font-[family-name:var(--font-dm-mono)] text-[9px] ${m.sender_id === selfId ? "text-[#080706]/60" : "text-[#6B665C]"}`}>
-              {m.project_members?.display_name ?? m.project_members?.email ?? "unknown"}
-              {m.project_members?.role === "domani_staff" ? " · Domani" : ""}
-              {" · "}{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </p>
-          </div>
-        ))}
-        <div ref={bottomRef} />
+    <main className="mx-auto flex h-[calc(100vh-64px)] max-w-2xl flex-col px-6 py-10">
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold">Chat</h1>
+        <p className="mt-1 text-sm text-[#948E80]">Direct line to the Domani team.</p>
       </div>
-      <div className="flex gap-2 mt-3">
-        <input
+
+      <Panel className="flex-1 space-y-3 overflow-y-auto p-4">
+        {messages.length === 0 && <EmptyState title="No messages yet." hint="Say hello — we're listening." />}
+        {messages.map((m) => {
+          const mine = m.sender_id === selfId;
+          const who = m.project_members?.display_name ?? m.project_members?.email ?? "unknown";
+          const isStaff = m.project_members?.role === "domani_staff";
+          return (
+            <div
+              key={m.id}
+              className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm ${
+                mine ? "ml-auto bg-[#B8F0FF] text-[#080706]" : "border border-[#1F1E1B] bg-[#0D0C0A] text-[#EDE9E2]"
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{m.body}</p>
+              <p
+                className={`mt-1 font-[family-name:var(--font-dm-mono)] text-[9px] ${
+                  mine ? "text-[#080706]/60" : "text-[#6B665C]"
+                }`}
+              >
+                {mine ? "You" : who}
+                {isStaff && !mine ? " · Domani" : ""} ·{" "}
+                {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </Panel>
+
+      <div className="mt-3 flex gap-2">
+        <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message…"
-          className="flex-1 border border-[#ECECEC] dark:border-[#2A2A2A] rounded-lg px-3 py-2 text-sm bg-transparent"
+          placeholder="Message the Domani team…"
         />
-        <button onClick={send} className="bg-black text-white rounded-lg px-4 py-2 text-sm">
+        <Button onClick={send} disabled={!text.trim()}>
           Send
-        </button>
+        </Button>
       </div>
     </main>
   );

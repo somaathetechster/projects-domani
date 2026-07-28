@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Button, EmptyState, Input, Label, Panel, Select, Skeleton, StatusChip, Textarea } from "@/components/ui";
 
 type Issue = {
   id: string;
@@ -11,24 +12,23 @@ type Issue = {
   status: string;
   created_at: string;
 };
-
-type Comment = {
-  id: string;
-  body: string;
-  attachment_url: string | null;
-  created_at: string;
-};
+type Comment = { id: string; body: string; author_id: string; created_at: string };
 
 const PRIORITIES = ["low", "medium", "high", "critical"];
-const STATUSES = ["open", "investigating", "in_progress", "awaiting_client", "resolved", "closed"];
+const FILTERS = [
+  { key: "open", label: "Open" },
+  { key: "all", label: "All" },
+  { key: "resolved", label: "Resolved" },
+];
 
 export default function IssuesPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const tokenRef = useRef<string | null>(null);
-  const [issues, setIssues] = useState<Issue[]>([]);
+
+  const [issues, setIssues] = useState<Issue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("open");
 
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -36,9 +36,20 @@ export default function IssuesPage() {
   const [priority, setPriority] = useState("medium");
   const [submitting, setSubmitting] = useState(false);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openIssue, setOpenIssue] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentBody, setCommentBody] = useState("");
+  const [commentText, setCommentText] = useState("");
+
+  const load = useCallback(async (t: string) => {
+    const res = await fetch("/api/issues", { headers: { Authorization: `Bearer ${t}` } });
+    const d = await res.json();
+    if (!res.ok) {
+      setError(d.error ?? "Failed to load issues");
+      setIssues([]);
+      return;
+    }
+    setIssues(d.issues);
+  }, []);
 
   useEffect(() => {
     const t = sessionStorage.getItem(`domani_session_${slug}`);
@@ -47,184 +58,174 @@ export default function IssuesPage() {
       return;
     }
     tokenRef.current = t;
-    loadIssues(t);
-  }, [slug, router]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
+    load(t);
+  }, [slug, router, load]);
 
-  async function loadIssues(t: string) {
-    setLoading(true);
-    const res = await fetch("/api/issues", { headers: { Authorization: `Bearer ${t}` } });
-    const json = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(json.error ?? "Failed to load issues");
-      return;
-    }
-    setIssues(json.issues);
-  }
-
-  async function createIssue() {
-    const token = tokenRef.current;
-    if (!token || !title.trim()) return;
+  async function submitIssue() {
+    const t = tokenRef.current;
+    if (!t || !title.trim()) return;
     setSubmitting(true);
     setError(null);
     const res = await fetch("/api/issues", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ title, description, priority }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      body: JSON.stringify({ title: title.trim(), description: description.trim() || undefined, priority }),
     });
-    const json = await res.json();
     setSubmitting(false);
     if (!res.ok) {
-      setError(json.error ?? "Failed to create issue");
+      setError((await res.json()).error ?? "Could not create issue");
       return;
     }
     setTitle("");
     setDescription("");
     setPriority("medium");
     setShowForm(false);
-    loadIssues(token);
+    load(t);
   }
 
-  async function openIssue(id: string) {
-    const token = tokenRef.current;
-    if (!token) return;
-    setSelectedId(id);
-    const res = await fetch(`/api/issues/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-    const json = await res.json();
-    if (res.ok) setComments(json.comments);
-  }
-
-  async function updateStatus(id: string, status: string) {
-    const token = tokenRef.current;
-    if (!token) return;
-    await fetch(`/api/issues/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status }),
-    });
-    loadIssues(token);
-  }
-
-  async function postComment() {
-    const token = tokenRef.current;
-    if (!token || !selectedId || !commentBody.trim()) return;
-    const res = await fetch(`/api/issues/${selectedId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ body: commentBody }),
-    });
-    if (res.ok) {
-      setCommentBody("");
-      openIssue(selectedId);
+  async function openThread(id: string) {
+    const t = tokenRef.current;
+    if (!t) return;
+    if (openIssue === id) {
+      setOpenIssue(null);
+      return;
     }
+    setOpenIssue(id);
+    setComments([]);
+    const res = await fetch(`/api/issues/${id}`, { headers: { Authorization: `Bearer ${t}` } });
+    if (res.ok) setComments((await res.json()).comments ?? []);
   }
+
+  async function addComment(id: string) {
+    const t = tokenRef.current;
+    if (!t || !commentText.trim()) return;
+    await fetch(`/api/issues/${id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      body: JSON.stringify({ body: commentText.trim() }),
+    });
+    setCommentText("");
+    openThread(id);
+    setOpenIssue(id);
+  }
+
+  const visible = (issues ?? []).filter((i) => {
+    if (filter === "all") return true;
+    if (filter === "resolved") return ["resolved", "closed"].includes(i.status);
+    return !["resolved", "closed"].includes(i.status);
+  });
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-10 space-y-6">
-      <div className="flex items-center justify-between">
+    <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-[#666]">Domani Portal · {slug}</p>
-          <h1 className="text-2xl font-semibold mt-1">Issues</h1>
+          <h1 className="text-2xl font-semibold">Issues</h1>
+          <p className="mt-1 text-sm text-[#948E80]">
+            Report anything that needs attention. Everything here is tracked and answered.
+          </p>
         </div>
-        <button
-          onClick={() => setShowForm((s) => !s)}
-          className="bg-black text-white text-sm rounded-lg px-4 py-2"
-        >
-          {showForm ? "Cancel" : "New Issue"}
-        </button>
+        <Button onClick={() => setShowForm((s) => !s)}>{showForm ? "Cancel" : "New issue"}</Button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[#E88B7D]">{error}</p>}
 
       {showForm && (
-        <div className="border border-[#ECECEC] rounded-xl p-4 space-y-3">
-          <input
-            placeholder="Title"
-            className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <textarea
-            placeholder="Description (optional)"
-            className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm min-h-[80px]"
+        <Panel className="space-y-3 p-6">
+          <Label>Report an issue</Label>
+          <Input placeholder="Short summary" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Textarea
+            placeholder="What happened, what you expected, and how to reproduce it"
+            className="min-h-28"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <select
-            className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <button
-            onClick={createIssue}
-            disabled={submitting || !title.trim()}
-            className="bg-black text-white text-sm rounded-lg px-4 py-2 disabled:opacity-40"
-          >
-            {submitting ? "Submitting…" : "Submit issue"}
-          </button>
-        </div>
+          <div className="flex items-center gap-3">
+            <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+            <Button onClick={submitIssue} disabled={submitting || !title.trim()}>
+              {submitting ? "Submitting…" : "Submit issue"}
+            </Button>
+          </div>
+        </Panel>
       )}
 
-      {loading ? (
-        <p className="text-sm text-[#666]">Loading…</p>
-      ) : (
-        <div className="border border-[#ECECEC] rounded-xl divide-y divide-[#ECECEC]">
-          {issues.length === 0 && <p className="p-4 text-sm text-[#666]">No issues yet.</p>}
-          {issues.map((i) => (
-            <div key={i.id} className="p-4">
-              <div className="flex items-center justify-between cursor-pointer" onClick={() => openIssue(i.id)}>
-                <span className="text-sm">#{i.number} {i.title}</span>
-                <span className="text-xs text-[#666]">{i.priority} · {i.status.replace("_", " ")}</span>
-              </div>
+      <div className="flex gap-1">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`rounded-lg px-3 py-1.5 font-[family-name:var(--font-dm-mono)] text-[10px] uppercase tracking-[0.15em] transition-colors ${
+              filter === f.key ? "bg-[#1F1E1B] text-[#EDE9E2]" : "text-[#6B665C] hover:text-[#948E80]"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-              {selectedId === i.id && (
-                <div className="mt-4 pl-4 border-l-2 border-[#ECECEC] space-y-3">
-                  <div className="flex gap-2 flex-wrap">
-                    {STATUSES.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => updateStatus(i.id, s)}
-                        className={`text-xs px-2 py-1 rounded-full border ${
-                          i.status === s ? "bg-black text-white border-black" : "border-[#ECECEC] text-[#666]"
-                        }`}
-                      >
-                        {s.replace("_", " ")}
-                      </button>
-                    ))}
-                  </div>
+      {!issues && <Skeleton className="h-32 w-full" />}
+      {issues && visible.length === 0 && (
+        <Panel>
+          <EmptyState
+            title={filter === "open" ? "No open issues." : "Nothing here."}
+            hint={filter === "open" ? "Everything reported has been resolved." : undefined}
+          />
+        </Panel>
+      )}
 
-                  <div className="space-y-2">
-                    {comments.map((c) => (
-                      <div key={c.id} className="text-sm bg-[#FAFAFA] rounded-lg p-2">
-                        {c.body}
-                      </div>
-                    ))}
-                  </div>
+      {visible.length > 0 && (
+        <Panel className="divide-y divide-[#1F1E1B]">
+          {visible.map((i) => (
+            <div key={i.id}>
+              <button
+                onClick={() => openThread(i.id)}
+                className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-[#161513]"
+              >
+                <span className="min-w-0 text-sm">
+                  <span className="font-[family-name:var(--font-dm-mono)] text-[#6B665C]">#{i.number}</span>{" "}
+                  {i.title}
+                </span>
+                <span className="flex flex-shrink-0 items-center gap-2">
+                  <StatusChip status={i.priority} />
+                  <StatusChip status={i.status} />
+                </span>
+              </button>
 
+              {openIssue === i.id && (
+                <div className="space-y-3 border-t border-[#1F1E1B] bg-[#0D0C0A] p-4">
+                  {comments.length === 0 && (
+                    <p className="text-xs text-[#6B665C]">No replies yet.</p>
+                  )}
+                  {comments.map((c) => (
+                    <div key={c.id} className="rounded-lg border border-[#1F1E1B] bg-[#111110] px-3 py-2">
+                      <p className="text-sm text-[#EDE9E2]">{c.body}</p>
+                      <p className="mt-1 font-[family-name:var(--font-dm-mono)] text-[9px] text-[#6B665C]">
+                        {new Date(c.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
                   <div className="flex gap-2">
-                    <input
-                      placeholder="Add a comment…"
-                      className="flex-1 border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-                      value={commentBody}
-                      onChange={(e) => setCommentBody(e.target.value)}
+                    <Input
+                      placeholder="Add a reply…"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addComment(i.id)}
                     />
-                    <button
-                      onClick={postComment}
-                      disabled={!commentBody.trim()}
-                      className="bg-black text-white text-sm rounded-lg px-4 py-2 disabled:opacity-40"
-                    >
-                      Post
-                    </button>
+                    <Button variant="secondary" onClick={() => addComment(i.id)} disabled={!commentText.trim()}>
+                      Reply
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
           ))}
-        </div>
+        </Panel>
       )}
     </main>
   );
