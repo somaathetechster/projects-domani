@@ -1,3 +1,4 @@
+import { notifyProject } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSession } from "@/lib/session";
@@ -59,5 +60,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Fire-and-forget: notify admin a client uploaded a document.
+  notifyProject(session.projectId, "New document uploaded", data.title, "/documents", session.memberId, { notifyAdmins: true }).catch(() => {});
+
   return NextResponse.json({ document: data }, { status: 201 });
 }

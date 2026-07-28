@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logActivity(project_id, "approval_requested", `Approval requested: ${data.title}`, auth.name ?? "Domani");
-  await notifyProject(project_id, "Approval needed", data.title, "/approvals");
+  await notifyProject(project_id, "Approval needed", data.title, "/approvals", undefined, {});
   return NextResponse.json({ approval: data }, { status: 201 });
 }
 

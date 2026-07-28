@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     await logActivity(project_id, "document_uploaded", `Document uploaded: ${title}`, auth.name ?? "Domani");
-    await notifyProject(project_id, "New document", title, "/documents");
+    await notifyProject(project_id, "New document", title, "/documents", undefined, {});
     return NextResponse.json({ document: data }, { status: 201 });
   }
 

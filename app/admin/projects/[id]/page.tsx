@@ -230,20 +230,32 @@ export default function AdminProjectPage() {
               min={0}
               max={100}
               value={project.progress_pct}
-              onChange={(e) => setProject({ ...project, progress_pct: Number(e.target.value) })}
-              onBlur={(e) => saveProject({ progress_pct: Number(e.target.value) })}
+              onChange={(e) => setProject((prev) => prev ? { ...prev, progress_pct: Number(e.target.value) } : prev)}
+              onBlur={(e) => {
+                const v = Math.max(0, Math.min(100, Number(e.target.value)));
+                setProject((prev) => prev ? { ...prev, progress_pct: v } : prev);
+                saveProject({ progress_pct: v });
+              }}
             />
             <Input
               placeholder="Current phase"
               value={project.current_phase ?? ""}
               onChange={(e) => setProject({ ...project, current_phase: e.target.value })}
-              onBlur={(e) => saveProject({ current_phase: e.target.value })}
+              onBlur={(e) => {
+                const v = e.target.value;
+                setProject((prev) => prev ? { ...prev, current_phase: v } : prev);
+                saveProject({ current_phase: v });
+              }}
             />
             <Input
               placeholder="Next milestone"
               value={project.next_milestone ?? ""}
               onChange={(e) => setProject({ ...project, next_milestone: e.target.value })}
-              onBlur={(e) => saveProject({ next_milestone: e.target.value })}
+              onBlur={(e) => {
+                const v = e.target.value;
+                setProject((prev) => prev ? { ...prev, next_milestone: v } : prev);
+                saveProject({ next_milestone: v });
+              }}
             />
           </div>
           {saving && <p className="text-[10px] text-[#6B665C]">Saving…</p>}

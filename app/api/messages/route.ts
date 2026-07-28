@@ -1,3 +1,4 @@
+import { notifyProject } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getSession } from "@/lib/session";
@@ -33,5 +34,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  notifyProject(session.projectId, "New client message", data.body.slice(0, 80), "/chat", session.memberId, { notifyAdmins: true }).catch(() => {});
+
   return NextResponse.json({ message: data }, { status: 201 });
 }

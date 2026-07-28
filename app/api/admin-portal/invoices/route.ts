@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logActivity(project_id, "invoice_issued", `Invoice ${data.number} issued`, auth.name ?? "Domani");
-  await notifyProject(project_id, "New invoice", `Invoice ${data.number}`, "/invoices");
+  await notifyProject(project_id, "New invoice", `Invoice ${data.number}`, "/invoices", undefined, {});
   return NextResponse.json({ invoice: data }, { status: 201 });
 }
 

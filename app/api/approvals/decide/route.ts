@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
     decision === "approved" ? "Approval granted" : "Changes requested",
     approval.title,
     "/approvals",
-    session.memberId
+    session.memberId,
+    { notifyAdmins: true }
   );
 
   return NextResponse.json({ ok: true });

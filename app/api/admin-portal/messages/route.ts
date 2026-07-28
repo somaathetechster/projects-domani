@@ -64,6 +64,6 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await notifyProject(project_id, "New message from Domani", body.trim().slice(0, 80), "/chat", senderId);
+  await notifyProject(project_id, "New message from Domani", body.trim().slice(0, 80), "/chat", senderId, {});
   return NextResponse.json({ message: data }, { status: 201 });
 }
