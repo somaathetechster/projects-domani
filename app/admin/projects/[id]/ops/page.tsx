@@ -42,6 +42,11 @@ export default function AdminOpsPage() {
 
   const [apTitle, setApTitle] = useState("");
   const [apVersion, setApVersion] = useState("");
+  const [apDescription, setApDescription] = useState("");
+  const [apContext, setApContext] = useState("");
+  const [apVerification, setApVerification] = useState("");
+  const [apLocation, setApLocation] = useState("");
+  const [apDeadline, setApDeadline] = useState("");
 
   const [chatText, setChatText] = useState("");
 
@@ -170,10 +175,19 @@ export default function AdminOpsPage() {
     await fetch("/api/admin-portal/approvals", {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ project_id: id, title: apTitle.trim(), version: apVersion.trim() || undefined }),
+      body: JSON.stringify({
+        project_id: id,
+        title: apTitle.trim(),
+        version: apVersion.trim() || undefined,
+        description: apDescription.trim() || undefined,
+        context: apContext.trim() || undefined,
+        verification_steps: apVerification.trim() || undefined,
+        review_location: apLocation.trim() || undefined,
+        deadline: apDeadline || undefined,
+      }),
     });
-    setApTitle("");
-    setApVersion("");
+    setApTitle(""); setApVersion(""); setApDescription("");
+    setApContext(""); setApVerification(""); setApLocation(""); setApDeadline("");
     load();
   }
 
@@ -301,8 +315,30 @@ export default function AdminOpsPage() {
           <Label>Approvals</Label>
           <Panel className="space-y-3 p-5">
             <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="What needs approval" value={apTitle} onChange={(e) => setApTitle(e.target.value)} />
+              <Input placeholder="What needs approval (title)*" value={apTitle} onChange={(e) => setApTitle(e.target.value)} />
               <Input placeholder="Version (optional)" value={apVersion} onChange={(e) => setApVersion(e.target.value)} />
+            </div>
+            <textarea
+              placeholder="Description — what this is in plain terms"
+              className="h-16 w-full rounded-lg border border-[#1F1E1B] bg-[#0D0C0A] px-3 py-2 text-sm text-[#EDE9E2] placeholder:text-[#6B665C] focus:outline-none"
+              value={apDescription}
+              onChange={(e) => setApDescription(e.target.value)}
+            />
+            <textarea
+              placeholder="Context — background and why this matters"
+              className="h-16 w-full rounded-lg border border-[#1F1E1B] bg-[#0D0C0A] px-3 py-2 text-sm text-[#EDE9E2] placeholder:text-[#6B665C] focus:outline-none"
+              value={apContext}
+              onChange={(e) => setApContext(e.target.value)}
+            />
+            <textarea
+              placeholder="How to verify — steps the client should take to review this"
+              className="h-16 w-full rounded-lg border border-[#1F1E1B] bg-[#0D0C0A] px-3 py-2 text-sm text-[#EDE9E2] placeholder:text-[#6B665C] focus:outline-none"
+              value={apVerification}
+              onChange={(e) => setApVerification(e.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Review link (URL, Figma, staging…)" value={apLocation} onChange={(e) => setApLocation(e.target.value)} />
+              <Input type="date" value={apDeadline} onChange={(e) => setApDeadline(e.target.value)} />
             </div>
             <Button onClick={requestApproval} disabled={!apTitle.trim()}>
               Request approval

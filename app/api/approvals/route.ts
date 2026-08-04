@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("approvals")
-    .select("id, title, version, description, status, requested_at, resolved_at, resolution_note, signed_name")
+    .select("id, title, version, description, context, verification_steps, review_location, deadline, status, requested_at, resolved_at, resolution_note, signed_name")
     .eq("project_id", session.projectId)
     .order("requested_at", { ascending: false });
 

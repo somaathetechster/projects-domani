@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const auth = await requirePlatformAdmin(req);
   if (auth instanceof NextResponse) return auth;
 
-  const { project_id, title, version, description } = await req.json();
+  const { project_id, title, version, description, context, verification_steps, review_location, deadline } = await req.json();
   if (!project_id || !title?.trim()) {
     return NextResponse.json({ error: "project_id and title are required" }, { status: 400 });
   }
@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       version: version ?? null,
       description: description ?? null,
+      context: context ?? null,
+      verification_steps: verification_steps ?? null,
+      review_location: review_location ?? null,
+      deadline: deadline ?? null,
     })
     .select()
     .single();
@@ -41,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("approvals")
-    .select("*")
+    .select("id, title, version, description, context, verification_steps, review_location, deadline, status, requested_at, resolved_at, signed_name, resolution_note")
     .eq("project_id", projectId)
     .order("requested_at", { ascending: false });
 

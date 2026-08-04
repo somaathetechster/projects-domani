@@ -149,6 +149,22 @@ export default function AdminProjectPage() {
     if (tokenRef.current) load(tokenRef.current);
   }
 
+  async function deleteModule(moduleId: string) {
+    await fetch(`/api/admin-portal/modules?id=${moduleId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (tokenRef.current) load(tokenRef.current);
+  }
+
+  async function deleteDeliverable(delId: string) {
+    await fetch(`/api/admin-portal/deliverables?id=${delId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (tokenRef.current) load(tokenRef.current);
+  }
+
   async function addMember() {
     if (!newMemberEmail.includes("@")) return;
     const res = await fetch("/api/admin-portal/members", {
@@ -350,6 +366,7 @@ export default function AdminProjectPage() {
                         </option>
                       ))}
                     </Select>
+                    <Button variant="danger" onClick={() => deleteModule(m.id)}>Delete</Button>
                   </div>
                 </div>
 
@@ -374,9 +391,15 @@ export default function AdminProjectPage() {
                         onChange={(e) => toggleDeliverable(d.id, e.target.checked)}
                         className="accent-[#B8F0FF]"
                       />
-                      <span className={d.done ? "text-[#6B665C] line-through" : "text-[#EDE9E2]"}>
+                      <span className={`flex-1 ${d.done ? "text-[#6B665C] line-through" : "text-[#EDE9E2]"}`}>
                         {d.title}
                       </span>
+                      <button
+                        onClick={() => deleteDeliverable(d.id)}
+                        className="text-[#E88B7D] hover:text-[#E88B7D]/80 px-1"
+                      >
+                        ×
+                      </button>
                     </li>
                   ))}
                 </ul>
